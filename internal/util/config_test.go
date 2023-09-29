@@ -52,12 +52,23 @@ func TestValidate(t *testing.T) {
 			fails: true,
 		},
 		{
-			name: "Missing bucket prefix config",
+			name: "Temporary directory needs to be set",
 			config: Config{
-				GroupName:    "/skpr/test/things",
-				BucketName:   "skpr-test",
-				BucketPrefix: "/my/test/prefix",
-				Start:        -time.Hour * 1,
+				GroupName:          "/skpr/test/things",
+				BucketName:         "skpr-test",
+				BucketPrefix:       "/my/test/prefix",
+				TemporaryDirectory: "/tmp",
+			},
+			fails: true,
+		},
+		{
+			name: "Passes",
+			config: Config{
+				GroupName:          "/skpr/test/things",
+				BucketName:         "skpr-test",
+				BucketPrefix:       "/my/test/prefix",
+				TemporaryDirectory: "/tmp",
+				Start:              -time.Hour * 1,
 			},
 			fails: false,
 		},
