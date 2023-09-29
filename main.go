@@ -39,7 +39,7 @@ const (
 	LogKeyS3BucketKey = "s3_bucket_key"
 )
 
-func run(ctx context.Context) error {
+func handler(ctx context.Context) error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	logger.LogAttrs(ctx, slog.LevelInfo, "Starting function")
@@ -129,5 +129,5 @@ func run(ctx context.Context) error {
 }
 
 func main() {
-	lambda.Start(run)
+	lambda.Start(handler)
 }
