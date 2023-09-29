@@ -24,4 +24,4 @@ build:
 
 # https://github.com/aws/aws-lambda-go#building-your-function
 package: build
-	zip lambda-handler.zip bootstrap
+	zip lambda-handler.zip bootstrap defaults.env
