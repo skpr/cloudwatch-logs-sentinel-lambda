@@ -34,11 +34,11 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 		EndTime:       aws.Int64(params.EndTime),
 	}
 
-	output := PackageOutput{}
+	output := PackageOutput{
+		FilePath: fmt.Sprintf("%s/%s.gz", params.Directory, params.StreamName),
+	}
 
-	tmpFile := fmt.Sprintf("%s/%s.gz", params.Directory, params.StreamName)
-
-	file, err := os.Create(tmpFile)
+	file, err := os.Create(output.FilePath)
 	defer func() {
 		err = errors.Join(err, file.Close())
 	}()
