@@ -8,22 +8,16 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	s3manager "github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/skpr/cloudwatch-logs-sentinel-lambda/internal/cloudwatch/events"
 	streamutils "github.com/skpr/cloudwatch-logs-sentinel-lambda/internal/cloudwatch/stream"
-)
-
-var (
-	GroupName    = "/skpr/skpr-dcs/dcs/dev/cloudfront"
-	StartTime    = time.Now().Add(-time.Hour * 1).UTC().UnixMilli()
-	EndTime      = time.Now().UTC().UnixMilli()
-	BucketName   = ""
-	BucketPrefix = ""
+	"github.com/skpr/cloudwatch-logs-sentinel-lambda/internal/util"
 )
 
 const (
@@ -45,16 +39,26 @@ const (
 	LogKeyS3BucketKey = "s3_bucket_key"
 )
 
-func hello(ctx context.Context) error {
+func run(ctx context.Context) error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	logger.LogAttrs(ctx, slog.LevelInfo, "Starting function",
-		slog.String(LogKeyCloudWatchLogsGroupName, GroupName),
-		slog.Int64(LogKeyCloudWatchLogsStreamStartTime, StartTime),
-		slog.Int64(LogKeyCloudWatchLogsStreamEndTime, EndTime),
-		slog.String(LogKeyS3BucketName, BucketName))
+	logger.LogAttrs(ctx, slog.LevelInfo, "Starting function")
 
-	cfg, err := config.LoadDefaultConfig(ctx)
+	config, err := util.LoadConfig(".")
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	start := time.Now().Add(config.Start).UTC()
+	end := time.Now().Add(config.End).UTC()
+
+	logger.LogAttrs(ctx, slog.LevelInfo, "Executing function",
+		slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
+		slog.String(LogKeyCloudWatchLogsStreamStartTime, start.String()),
+		slog.String(LogKeyCloudWatchLogsStreamEndTime, end.String()),
+		slog.String(LogKeyS3BucketName, config.BucketName))
+
+	cfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
@@ -70,28 +74,28 @@ func hello(ctx context.Context) error {
 
 	logger.LogAttrs(ctx, slog.LevelInfo, "Getting CloudWatch log streams")
 
-	streams, err := streamutils.GetLogStreams(ctx, svc, GroupName, StartTime)
+	streams, err := streamutils.GetLogStreams(ctx, svc, config.GroupName, start.UnixMilli())
 	if err != nil {
 		return fmt.Errorf("failed to get log streams, %v", err)
 	}
 
 	for _, stream := range streams {
 		logger.LogAttrs(ctx, slog.LevelInfo, "Packaging log events",
-			slog.String(LogKeyCloudWatchLogsGroupName, GroupName),
+			slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
 			slog.String(LogKeyCloudWatchLogsStreamName, *stream.LogStreamName))
 
 		output, err := events.Package(ctx, svc, events.PackageInput{
-			GroupName:  GroupName,
+			GroupName:  config.GroupName,
 			StreamName: *stream.LogStreamName,
-			StartTime:  StartTime,
-			EndTime:    EndTime,
+			StartTime:  start.UnixMilli(),
+			EndTime:    end.UnixMilli(),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to push log events, %w", err)
 		}
 
 		logger.LogAttrs(ctx, slog.LevelInfo, "Successfully packaged log events to filesystem",
-			slog.String(LogKeyCloudWatchLogsGroupName, GroupName),
+			slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
 			slog.String(LogKeyCloudWatchLogsStreamName, *stream.LogStreamName),
 			slog.String(LogKeyTemporaryFilePath, output.FilePath),
 			slog.Int(LogKeyCloudWatchLogsStreamLogCount, output.Count))
@@ -101,20 +105,20 @@ func hello(ctx context.Context) error {
 			return fmt.Errorf("failed to open file %q, %w", output.FilePath, err)
 		}
 
-		key := fmt.Sprintf("%s/%s/%s.gz", BucketPrefix, *stream.LogStreamName, now)
+		key := fmt.Sprintf("%s/%s/%s.gz", config.BucketPrefix, *stream.LogStreamName, now)
 
 		_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
-			Bucket: aws.String(BucketName),
+			Bucket: aws.String(config.BucketName),
 			Key:    aws.String(key),
 			Body:   file,
 		})
 
 		logger.LogAttrs(ctx, slog.LevelInfo, "Finished pushing log events to S3 bucket",
-			slog.String(LogKeyCloudWatchLogsGroupName, GroupName),
+			slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
 			slog.String(LogKeyCloudWatchLogsStreamName, *stream.LogStreamName),
 			slog.Int(LogKeyCloudWatchLogsStreamLogCount, output.Count),
 			slog.String(LogKeyTemporaryFilePath, output.FilePath),
-			slog.String(LogKeyS3BucketName, BucketName),
+			slog.String(LogKeyS3BucketName, config.BucketName),
 			slog.String(LogKeyS3BucketKey, key))
 	}
 
@@ -122,5 +126,5 @@ func hello(ctx context.Context) error {
 }
 
 func main() {
-	lambda.Start(hello)
+	lambda.Start(run)
 }
