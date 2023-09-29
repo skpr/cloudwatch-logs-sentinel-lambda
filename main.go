@@ -89,6 +89,7 @@ func handler(ctx context.Context) error {
 			StreamName: *stream.LogStreamName,
 			StartTime:  start.UnixMilli(),
 			EndTime:    end.UnixMilli(),
+			Directory:  config.TemporaryDirectory,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to push log events, %w", err)

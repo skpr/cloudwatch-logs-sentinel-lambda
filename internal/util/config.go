@@ -9,11 +9,12 @@ import (
 
 // Config used by this application.
 type Config struct {
-	GroupName    string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_GROUP_NAME"`
-	Start        time.Duration `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_START"`
-	End          time.Duration `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_END"`
-	BucketName   string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_BUCKET_NAME"`
-	BucketPrefix string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_BUCKET_PREFIX"`
+	GroupName          string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_GROUP_NAME"`
+	Start              time.Duration `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_START"`
+	End                time.Duration `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_END"`
+	BucketName         string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_BUCKET_NAME"`
+	BucketPrefix       string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_BUCKET_PREFIX"`
+	TemporaryDirectory string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_TEMPORARY_DIRECTORY"`
 }
 
 // Validate validates the config.
@@ -34,6 +35,10 @@ func (c Config) Validate() []string {
 
 	if c.BucketPrefix == "" {
 		errors = append(errors, "CLOUDWATCH_LOGS_SENTINEL_BUCKET_PREFIX is a required variable")
+	}
+
+	if c.TemporaryDirectory == "" {
+		errors = append(errors, "CLOUDWATCH_LOGS_SENTINEL_TEMPORARY_DIRECTORY is a required variable")
 	}
 
 	return errors
