@@ -112,6 +112,9 @@ func run(ctx context.Context) error {
 			Key:    aws.String(key),
 			Body:   file,
 		})
+		if err != nil {
+			return fmt.Errorf("failed to upload file %q, %w", output.FilePath, err)
+		}
 
 		logger.LogAttrs(ctx, slog.LevelInfo, "Finished pushing log events to S3 bucket",
 			slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),

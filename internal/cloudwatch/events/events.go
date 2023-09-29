@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -38,7 +39,10 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 	tmpFile := fmt.Sprintf("%s/%s.gz", params.Directory, params.StreamName)
 
 	file, err := os.Create(tmpFile)
-	defer file.Close()
+	defer func() {
+		err = errors.Join(err, file.Close())
+	}()
+
 	if err != nil {
 		return output, fmt.Errorf("failed to create file, %v", err)
 	}
