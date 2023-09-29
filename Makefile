@@ -20,7 +20,7 @@ test:
 	go test -cover ./...
 
 build:
-	GOARCH=amd64 GOOS=linux go build -o ${OUTPUT} main.go
+	GOARCH=amd64 GOOS=linux go build -tags lambda.norpc -o ${OUTPUT} main.go
 
 # https://github.com/aws/aws-lambda-go#building-your-function
 package: build
