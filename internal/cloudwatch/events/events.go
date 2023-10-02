@@ -50,6 +50,9 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 	zipWriter := gzip.NewWriter(file)
 	csvwriter := csv.NewWriter(zipWriter)
 
+	// https://github.com/Azure/Azure-Sentinel/blob/master/DataConnectors/AWS-S3/CloudWatchLanbdaFunction.py#L57C132-L57C143
+	csvwriter.Comma = ' '
+
 	for {
 		resp, err := svc.GetLogEvents(ctx, input)
 		if err != nil {
