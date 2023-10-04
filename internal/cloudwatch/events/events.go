@@ -67,7 +67,7 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 
 		for _, event := range resp.Events {
 			record := []string{
-				time.Unix(*event.Timestamp, 0).String(),
+				time.Unix(*event.Timestamp, 0).Format("2006-01-02T15:04:05Z"),
 				*event.Message,
 			}
 
