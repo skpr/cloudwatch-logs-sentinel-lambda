@@ -35,7 +35,7 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 	}
 
 	output := PackageOutput{
-		FilePath: fmt.Sprintf("%s/%s.gz", params.Directory, params.StreamName),
+		FilePath: fmt.Sprintf("%s/%s.csv.gz", params.Directory, params.StreamName),
 	}
 
 	file, err := os.Create(output.FilePath)
