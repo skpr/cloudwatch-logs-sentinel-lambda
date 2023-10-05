@@ -106,7 +106,7 @@ func handler(ctx context.Context) error {
 			return fmt.Errorf("failed to open file %q, %w", output.FilePath, err)
 		}
 
-		key := fmt.Sprintf("%s/%s/%s.gz", config.BucketPrefix, *stream.LogStreamName, now)
+		key := fmt.Sprintf("%s/%s/%s.csv.gz", config.BucketPrefix, *stream.LogStreamName, now)
 
 		_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
 			Bucket: aws.String(config.BucketName),
