@@ -32,6 +32,7 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 		LogStreamName: aws.String(params.StreamName),
 		StartTime:     aws.Int64(params.StartTime),
 		EndTime:       aws.Int64(params.EndTime),
+		StartFromHead: aws.Bool(true),
 	}
 
 	output := PackageOutput{
