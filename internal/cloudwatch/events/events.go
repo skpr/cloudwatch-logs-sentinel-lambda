@@ -35,7 +35,7 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 	}
 
 	output := PackageOutput{
-		FilePath: fmt.Sprintf("%s/%s.csv.gz", params.Directory, params.StreamName),
+		FilePath: fmt.Sprintf("%s/%s.gz", params.Directory, params.StreamName),
 	}
 
 	file, err := os.Create(output.FilePath)
@@ -67,7 +67,7 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 
 		for _, event := range resp.Events {
 			record := []string{
-				time.Unix(*event.Timestamp, 0).Format("2006-01-02T15:04:05Z"),
+				time.UnixMilli(*event.Timestamp).Format("2006-01-02T15:04:05.000Z"),
 				*event.Message,
 			}
 
