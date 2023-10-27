@@ -14,11 +14,12 @@ import (
 )
 
 type PackageInput struct {
-	GroupName  string
-	StreamName string
-	StartTime  int64
-	EndTime    int64
-	Directory  string
+	GroupName    string
+	StreamName   string
+	StartTime    int64
+	EndTime      int64
+	Directory    string
+	InjectFields []string
 }
 
 type PackageOutput struct {
@@ -69,8 +70,13 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 		for _, event := range resp.Events {
 			record := []string{
 				time.UnixMilli(*event.Timestamp).Format("2006-01-02T15:04:05.000Z"),
-				*event.Message,
 			}
+
+			if len(params.InjectFields) > 0 {
+				record = append(record, params.InjectFields...)
+			}
+
+			record = append(record, *event.Message)
 
 			if err := csvwriter.Write(record); err != nil {
 				return output, fmt.Errorf("failed to write log event to CSV, %v", err)

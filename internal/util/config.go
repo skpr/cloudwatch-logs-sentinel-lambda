@@ -15,6 +15,7 @@ type Config struct {
 	BucketName         string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_BUCKET_NAME"`
 	BucketPrefix       string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_BUCKET_PREFIX"`
 	TemporaryDirectory string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_TEMPORARY_DIRECTORY"`
+	InjectFields       string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_INJECT_FIELDS"`
 }
 
 // Validate validates the config.
