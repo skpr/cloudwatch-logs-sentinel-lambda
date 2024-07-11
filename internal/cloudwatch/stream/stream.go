@@ -37,8 +37,6 @@ func GetLogStreams(ctx context.Context, svc CloudWatchClient, group string, star
 				continue
 			}
 
-			fmt.Printf("%s = %d < %d\n", *stream.LogStreamName, *stream.LastEventTimestamp, startTime)
-
 			if *stream.LastEventTimestamp < startTime {
 				continue
 			}
