@@ -6,7 +6,6 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -92,12 +91,11 @@ func handler(ctx context.Context) error {
 			slog.String(LogKeyCloudWatchLogsStreamName, *stream.LogStreamName))
 
 		output, hasEvents, err := events.Package(ctx, svc, events.PackageInput{
-			GroupName:    config.GroupName,
-			StreamName:   *stream.LogStreamName,
-			StartTime:    start.UnixMilli(),
-			EndTime:      end.UnixMilli(),
-			Directory:    config.TemporaryDirectory,
-			InjectFields: strings.Split(config.InjectFields, ","),
+			GroupName:  config.GroupName,
+			StreamName: *stream.LogStreamName,
+			StartTime:  start.UnixMilli(),
+			EndTime:    end.UnixMilli(),
+			Directory:  config.TemporaryDirectory,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to push log events, %w", err)
