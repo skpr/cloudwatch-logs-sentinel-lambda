@@ -50,6 +50,7 @@ func handler(ctx context.Context) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	discovery := time.Now().Add(config.DiscoveryStart).UTC()
 	start := time.Now().Add(config.Start).UTC()
 	end := time.Now().Add(config.End).UTC()
 
@@ -75,9 +76,14 @@ func handler(ctx context.Context) error {
 
 	logger.LogAttrs(ctx, slog.LevelInfo, "Getting CloudWatch log streams")
 
-	streams, err := streamutils.GetLogStreams(ctx, svc, config.GroupName, start.UnixMilli())
+	streams, err := streamutils.GetLogStreams(ctx, svc, config.GroupName, discovery.UnixMilli())
 	if err != nil {
 		return fmt.Errorf("failed to get log streams, %v", err)
+	}
+
+	if len(streams) == 0 {
+		logger.LogAttrs(ctx, slog.LevelInfo, "No streams were found")
+		return nil
 	}
 
 	for _, stream := range streams {
@@ -85,7 +91,7 @@ func handler(ctx context.Context) error {
 			slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
 			slog.String(LogKeyCloudWatchLogsStreamName, *stream.LogStreamName))
 
-		output, err := events.Package(ctx, svc, events.PackageInput{
+		output, hasEvents, err := events.Package(ctx, svc, events.PackageInput{
 			GroupName:    config.GroupName,
 			StreamName:   *stream.LogStreamName,
 			StartTime:    start.UnixMilli(),
@@ -95,6 +101,15 @@ func handler(ctx context.Context) error {
 		})
 		if err != nil {
 			return fmt.Errorf("failed to push log events, %w", err)
+		}
+
+		if !hasEvents {
+			logger.LogAttrs(ctx, slog.LevelInfo, "Stream does not have events. Skipping.",
+				slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
+				slog.String(LogKeyCloudWatchLogsStreamName, *stream.LogStreamName),
+				slog.String(LogKeyTemporaryFilePath, output.FilePath),
+				slog.Int(LogKeyCloudWatchLogsStreamLogCount, output.Count))
+			continue
 		}
 
 		logger.LogAttrs(ctx, slog.LevelInfo, "Successfully packaged log events to filesystem",

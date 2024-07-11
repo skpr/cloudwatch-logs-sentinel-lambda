@@ -62,6 +62,18 @@ func TestValidate(t *testing.T) {
 			fails: true,
 		},
 		{
+			name: "Discovery start needs to be before start",
+			config: Config{
+				GroupName:          "/skpr/test/things",
+				BucketName:         "skpr-test",
+				BucketPrefix:       "/my/test/prefix",
+				TemporaryDirectory: "/tmp",
+				Start:              -time.Hour * 3,
+				DiscoveryStart:     -time.Hour * 1,
+			},
+			fails: true,
+		},
+		{
 			name: "Passes",
 			config: Config{
 				GroupName:          "/skpr/test/things",
@@ -69,6 +81,7 @@ func TestValidate(t *testing.T) {
 				BucketPrefix:       "/my/test/prefix",
 				TemporaryDirectory: "/tmp",
 				Start:              -time.Hour * 1,
+				DiscoveryStart:     -time.Hour * 3,
 			},
 			fails: false,
 		},

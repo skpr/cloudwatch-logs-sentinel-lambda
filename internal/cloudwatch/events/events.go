@@ -27,7 +27,9 @@ type PackageOutput struct {
 	Count    int
 }
 
-func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInput) (PackageOutput, error) {
+func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInput) (PackageOutput, bool, error) {
+	var hasEvents bool
+
 	input := &cloudwatchlogs.GetLogEventsInput{
 		LogGroupName:  aws.String(params.GroupName),
 		LogStreamName: aws.String(params.StreamName),
@@ -46,7 +48,7 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 	}()
 
 	if err != nil {
-		return output, fmt.Errorf("failed to create file, %v", err)
+		return output, hasEvents, fmt.Errorf("failed to create file, %v", err)
 	}
 
 	zipWriter := gzip.NewWriter(file)
@@ -58,10 +60,18 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 	for {
 		resp, err := svc.GetLogEvents(ctx, input)
 		if err != nil {
-			return output, fmt.Errorf("failed to get log events, %v", err)
+			return output, hasEvents, fmt.Errorf("failed to get log events, %v", err)
 		}
 
-		if len(resp.Events) == 0 {
+		count := len(resp.Events)
+
+		// If we have events AND we have not marked this before.
+		if count > 0 && !hasEvents {
+			hasEvents = true
+		}
+
+		// We don't have any more logs to write.
+		if count == 0 {
 			break
 		}
 
@@ -79,7 +89,7 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 			record = append(record, *event.Message)
 
 			if err := csvwriter.Write(record); err != nil {
-				return output, fmt.Errorf("failed to write log event to CSV, %v", err)
+				return output, hasEvents, fmt.Errorf("failed to write log event to CSV, %v", err)
 			}
 		}
 
@@ -101,12 +111,12 @@ func Package(ctx context.Context, svc *cloudwatchlogs.Client, params PackageInpu
 	csvwriter.Flush()
 
 	if err := zipWriter.Flush(); err != nil {
-		return output, fmt.Errorf("failed to flush gzip writer, %v", err)
+		return output, hasEvents, fmt.Errorf("failed to flush gzip writer, %v", err)
 	}
 
 	if err := zipWriter.Close(); err != nil {
-		return output, fmt.Errorf("failed to close gzip writer, %v", err)
+		return output, hasEvents, fmt.Errorf("failed to close gzip writer, %v", err)
 	}
 
-	return output, nil
+	return output, hasEvents, nil
 }
