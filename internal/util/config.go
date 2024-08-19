@@ -10,7 +10,7 @@ import (
 // Config used by this application.
 type Config struct {
 	GroupName          string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_GROUP_NAME"`
-	DiscoveryStart     time.Duration `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_DISCOVERY_START"`
+	StreamName         string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_STREAM_NAME"`
 	Start              time.Duration `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_START"`
 	End                time.Duration `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_END"`
 	BucketName         string        `mapstructure:"CLOUDWATCH_LOGS_SENTINEL_BUCKET_NAME"`
@@ -26,8 +26,8 @@ func (c Config) Validate() []string {
 		errors = append(errors, "CLOUDWATCH_LOGS_SENTINEL_GROUP_NAME is a required variable")
 	}
 
-	if c.DiscoveryStart.Milliseconds() >= c.Start.Milliseconds() {
-		errors = append(errors, "CLOUDWATCH_LOGS_SENTINEL_DISCOVERY_START should be a duration before CLOUDWATCH_LOGS_SENTINEL_START")
+	if c.StreamName == "" {
+		errors = append(errors, "CLOUDWATCH_LOGS_SENTINEL_STREAM_NAME is a required variable")
 	}
 
 	if c.Start.Milliseconds() >= c.End.Milliseconds() {
