@@ -11,6 +11,7 @@ func TestLoadConfig(t *testing.T) {
 	config, err := LoadConfig("testdata")
 	assert.NoError(t, err)
 	assert.Equal(t, "/skpr/test/things", config.GroupName)
+	assert.Equal(t, "fpm", config.StreamName)
 	assert.Equal(t, -time.Hour*1, config.Start)
 	assert.Equal(t, time.Duration(0), config.End)
 	assert.Equal(t, "skpr-test", config.BucketName)
