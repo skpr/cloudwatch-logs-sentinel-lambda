@@ -11,6 +11,7 @@ func TestLoadConfig(t *testing.T) {
 	config, err := LoadConfig("testdata")
 	assert.NoError(t, err)
 	assert.Equal(t, "/skpr/test/things", config.GroupName)
+	assert.Equal(t, "fpm", config.StreamName)
 	assert.Equal(t, -time.Hour*1, config.Start)
 	assert.Equal(t, time.Duration(0), config.End)
 	assert.Equal(t, "skpr-test", config.BucketName)
@@ -28,9 +29,17 @@ func TestValidate(t *testing.T) {
 			fails: true,
 		},
 		{
-			name: "Missing bucket name and prefix config",
+			name: "Missing stream name, bucket name and prefix config",
 			config: Config{
 				GroupName: "/skpr/test/things",
+			},
+			fails: true,
+		},
+		{
+			name: "Missing bucket name and prefix config",
+			config: Config{
+				GroupName:  "/skpr/test/things",
+				StreamName: "fpm",
 			},
 			fails: true,
 		},
@@ -38,6 +47,7 @@ func TestValidate(t *testing.T) {
 			name: "Missing bucket prefix config",
 			config: Config{
 				GroupName:  "/skpr/test/things",
+				StreamName: "fpm",
 				BucketName: "skpr-test",
 			},
 			fails: true,
@@ -46,6 +56,7 @@ func TestValidate(t *testing.T) {
 			name: "Start needs to be before end",
 			config: Config{
 				GroupName:    "/skpr/test/things",
+				StreamName:   "fpm",
 				BucketName:   "skpr-test",
 				BucketPrefix: "/my/test/prefix",
 			},
@@ -55,6 +66,7 @@ func TestValidate(t *testing.T) {
 			name: "Temporary directory needs to be set",
 			config: Config{
 				GroupName:          "/skpr/test/things",
+				StreamName:         "fpm",
 				BucketName:         "skpr-test",
 				BucketPrefix:       "/my/test/prefix",
 				TemporaryDirectory: "/tmp",
@@ -65,23 +77,11 @@ func TestValidate(t *testing.T) {
 			name: "Discovery start needs to be before start",
 			config: Config{
 				GroupName:          "/skpr/test/things",
+				StreamName:         "fpm",
 				BucketName:         "skpr-test",
 				BucketPrefix:       "/my/test/prefix",
 				TemporaryDirectory: "/tmp",
 				Start:              -time.Hour * 3,
-				DiscoveryStart:     -time.Hour * 1,
-			},
-			fails: true,
-		},
-		{
-			name: "Passes",
-			config: Config{
-				GroupName:          "/skpr/test/things",
-				BucketName:         "skpr-test",
-				BucketPrefix:       "/my/test/prefix",
-				TemporaryDirectory: "/tmp",
-				Start:              -time.Hour * 1,
-				DiscoveryStart:     -time.Hour * 3,
 			},
 			fails: false,
 		},

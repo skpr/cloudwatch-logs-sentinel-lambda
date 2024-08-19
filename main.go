@@ -16,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/skpr/cloudwatch-logs-sentinel-lambda/internal/cloudwatch/events"
-	streamutils "github.com/skpr/cloudwatch-logs-sentinel-lambda/internal/cloudwatch/stream"
 	"github.com/skpr/cloudwatch-logs-sentinel-lambda/internal/util"
 )
 
@@ -49,7 +48,6 @@ func handler(ctx context.Context) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	discovery := time.Now().Add(config.DiscoveryStart).UTC()
 	start := time.Now().Add(config.Start).UTC()
 	end := time.Now().Add(config.End).UTC()
 
@@ -73,73 +71,59 @@ func handler(ctx context.Context) error {
 	// This is used to create a unique upload file name.
 	now := time.Now().UTC().String()
 
-	logger.LogAttrs(ctx, slog.LevelInfo, "Getting CloudWatch log streams")
+	logger.LogAttrs(ctx, slog.LevelInfo, "Packaging log events",
+		slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
+		slog.String(LogKeyCloudWatchLogsStreamName, config.StreamName))
 
-	streams, err := streamutils.GetLogStreams(ctx, svc, config.GroupName, discovery.UnixMilli())
+	output, hasEvents, err := events.Package(ctx, svc, events.PackageInput{
+		GroupName:  config.GroupName,
+		StreamName: config.StreamName,
+		StartTime:  start.UnixMilli(),
+		EndTime:    end.UnixMilli(),
+		Directory:  config.TemporaryDirectory,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to get log streams, %v", err)
+		return fmt.Errorf("failed to push log events, %w", err)
 	}
 
-	if len(streams) == 0 {
-		logger.LogAttrs(ctx, slog.LevelInfo, "No streams were found")
+	if !hasEvents {
+		logger.LogAttrs(ctx, slog.LevelInfo, "Stream does not have events. Skipping.",
+			slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
+			slog.String(LogKeyCloudWatchLogsStreamName, config.StreamName),
+			slog.String(LogKeyTemporaryFilePath, output.FilePath),
+			slog.Int(LogKeyCloudWatchLogsStreamLogCount, output.Count))
 		return nil
 	}
 
-	for _, stream := range streams {
-		logger.LogAttrs(ctx, slog.LevelInfo, "Packaging log events",
-			slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
-			slog.String(LogKeyCloudWatchLogsStreamName, *stream.LogStreamName))
+	logger.LogAttrs(ctx, slog.LevelInfo, "Successfully packaged log events to filesystem",
+		slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
+		slog.String(LogKeyCloudWatchLogsStreamName, config.StreamName),
+		slog.String(LogKeyTemporaryFilePath, output.FilePath),
+		slog.Int(LogKeyCloudWatchLogsStreamLogCount, output.Count))
 
-		output, hasEvents, err := events.Package(ctx, svc, events.PackageInput{
-			GroupName:  config.GroupName,
-			StreamName: *stream.LogStreamName,
-			StartTime:  start.UnixMilli(),
-			EndTime:    end.UnixMilli(),
-			Directory:  config.TemporaryDirectory,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to push log events, %w", err)
-		}
-
-		if !hasEvents {
-			logger.LogAttrs(ctx, slog.LevelInfo, "Stream does not have events. Skipping.",
-				slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
-				slog.String(LogKeyCloudWatchLogsStreamName, *stream.LogStreamName),
-				slog.String(LogKeyTemporaryFilePath, output.FilePath),
-				slog.Int(LogKeyCloudWatchLogsStreamLogCount, output.Count))
-			continue
-		}
-
-		logger.LogAttrs(ctx, slog.LevelInfo, "Successfully packaged log events to filesystem",
-			slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
-			slog.String(LogKeyCloudWatchLogsStreamName, *stream.LogStreamName),
-			slog.String(LogKeyTemporaryFilePath, output.FilePath),
-			slog.Int(LogKeyCloudWatchLogsStreamLogCount, output.Count))
-
-		file, err := os.Open(output.FilePath)
-		if err != nil {
-			return fmt.Errorf("failed to open file %q, %w", output.FilePath, err)
-		}
-
-		key := fmt.Sprintf("%s/%s/%s.gz", config.BucketPrefix, *stream.LogStreamName, now)
-
-		_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
-			Bucket: aws.String(config.BucketName),
-			Key:    aws.String(key),
-			Body:   file,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to upload file %q, %w", output.FilePath, err)
-		}
-
-		logger.LogAttrs(ctx, slog.LevelInfo, "Finished pushing log events to S3 bucket",
-			slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
-			slog.String(LogKeyCloudWatchLogsStreamName, *stream.LogStreamName),
-			slog.Int(LogKeyCloudWatchLogsStreamLogCount, output.Count),
-			slog.String(LogKeyTemporaryFilePath, output.FilePath),
-			slog.String(LogKeyS3BucketName, config.BucketName),
-			slog.String(LogKeyS3BucketKey, key))
+	file, err := os.Open(output.FilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file %q, %w", output.FilePath, err)
 	}
+
+	key := fmt.Sprintf("%s/%s/%s.gz", config.BucketPrefix, config.StreamName, now)
+
+	_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String(config.BucketName),
+		Key:    aws.String(key),
+		Body:   file,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload file %q, %w", output.FilePath, err)
+	}
+
+	logger.LogAttrs(ctx, slog.LevelInfo, "Finished pushing log events to S3 bucket",
+		slog.String(LogKeyCloudWatchLogsGroupName, config.GroupName),
+		slog.String(LogKeyCloudWatchLogsStreamName, config.StreamName),
+		slog.Int(LogKeyCloudWatchLogsStreamLogCount, output.Count),
+		slog.String(LogKeyTemporaryFilePath, output.FilePath),
+		slog.String(LogKeyS3BucketName, config.BucketName),
+		slog.String(LogKeyS3BucketKey, key))
 
 	return nil
 }
